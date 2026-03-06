@@ -1,0 +1,12 @@
+[Unit]
+Description=Watching Users
+
+[Service]
+ExecStart=/usr/local/bin/user_detection.sh
+Restart=always
+restartSec=1m
+StartLimitBurst=2
+StartLimitIntervalSec=30
+
+[Install]
+WantedBy=multi-user.target
