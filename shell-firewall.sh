@@ -6,7 +6,37 @@ DHCP_SERVER="192.168.24.40"
 DNS_SERVER="172.50.120.10"
 REPO_MIRROR="172.50.100.10"
 
+# Remove immutable flags to unlock files needed
+chattr -i /etc/firewalld/direct.xml
+chattr -R -i /etc/firewalld/zones/
+chattr -i /usr/sbin/xtables-nft-multi
+chattr -i /usr/sbin/firewalld
+chattr -i /usr/sbin/nft
+
+# stop service to wipe its memory
+systemctl stop firewalld
+
+# Wipe red team zones
+# This includes custom zones and any changes to default zones
+rm -rf /etc/firewalld/zones/*
+rm -f /etc/firewalld/direct.xml
+
+#Flush the Kernel memory -F and -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -t nat -F
+iptables -t mangle -F
+iptables -F
+iptables -X
+nft flush ruleset
+
+#Firewalld will be in default state
+systemctl start firewalld
+
+#Create Custom firewall zones
 #Scoring Zone
+firewall-cmd --permanent --delete-zone=scoring >/dev/null 2>&1
 firewall-cmd --permanent --new-zone=scoring
 firewall-cmd --permanent --zone=scoring --add-source=${SCORING_IP}
 firewall-cmd --permanent --zone=scoring --add-service=samba
@@ -16,6 +46,7 @@ firewall-cmd --permanent --zone=scoring --add-rich-rule='rule service name="ssh"
 firewall-cmd --permanent --zone=scoring --set-target=ACCEPT
 
 #Team Kali
+firewall-cmd --permanent --delete-zone=mgmt-kali >/dev/null 2>&1
 firewall-cmd --permanent --new-zone=mgmt-kali
 firewall-cmd --permanent --zone=mgmt-kali --add-source=${EXTERNAL_KALI}
 firewall-cmd --permanent --zone=mgmt-kali --add-service=ssh
@@ -23,6 +54,7 @@ firewall-cmd --permanent --zone=mgmt-kali --add-protocol=icmp
 firewall-cmd --permanent --zone=mgmt-kali --set-target=ACCEPT
 
 #DHCP Server
+firewall-cmd --permanent --delete-zone=dhcp-trust >/dev/null 2>&1
 firewall-cmd --permanent --new-zone=dhcp-trust
 firewall-cmd --permanent --zone=dhcp-trust --add-source=${DHCP_SERVER}
 firewall-cmd --permanent --zone=dhcp-trust --add-service=dhcp
@@ -33,10 +65,11 @@ firewall-cmd --permanent --zone=drop --add-interface=${INTERFACE}
 firewall-cmd --permanent --zone=drop --add-service=dhcp
 #comment dhcp once the IP is known
 
+#Direct rules are stored in /etc/firewalld/direct.xml
 #OUTBOUND rules
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 0 -m state --state INVALID -j DROP
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 1 -m state --state ESTABLISHED,RELATED -j ACCEPT
-firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 -p udp -d ${DNS_SERVER} --dport 53 -m length --length 0:512 -j ACCEPT
+firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 -p udp -d ${DNS_SERVER} --dport 53 -m length --length 0:4096 -j ACCEPT
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 -p tcp -d ${DNS_SERVER} --dport 53 -j ACCEPT
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 -p tcp -d ${REPO_MIRROR} -m multiport --dports 80,443 -j ACCEPT
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 -p udp --dport 67:68 -j ACCEPT
@@ -45,3 +78,10 @@ firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 255 -j DROP
 
 #Reload to use this configuration
 firewall-cmd --reload
+
+# Lock the firewall configs and files
+chattr +i /etc/firewalld/direct.xml
+chattr -R +i /etc/firewalld/zones/
+chattr +i /usr/sbin/xtables-nft-multi
+chattr +i /usr/sbin/firewalld
+chattr +i /usr/sbin/nft
