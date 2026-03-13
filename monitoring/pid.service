@@ -1,0 +1,12 @@
+[Unit]
+Description=Watching Users
+
+[Service]
+ExecStart=/usr/local/bin/killpid.sh
+Restart=always
+RestartSec=1m
+StartLimitBurst=2
+StartLimitIntervalSec=30
+
+[Install]
+WantedBy=multi-user.target
