@@ -1,0 +1,12 @@
+[Unit]
+Description=Watching Users
+
+[Service]
+ExecStart=/root/scripts-2026/monitoring/user_detection.sh
+Restart=always
+RestartSec=1m
+StartLimitBurst=20
+StartLimitIntervalSec=600
+
+[Install]
+WantedBy=multi-user.target
