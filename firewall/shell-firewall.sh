@@ -12,7 +12,7 @@
 # DESIGN:
 #   firewalld uses a zone-based model: each network interface is assigned to
 #   a zone, and each zone has its own set of allowed services and a default
-#   target (ACCEPT or DROP). This script creates three custom zones:
+#   target (ACCEPT or DROP). This script creates two custom zones:
 #
 #   scoring    — allows the scoring engine to connect in for SSH and SMB checks.
 #                Source is restricted to the scoring engine's IP so only that
@@ -21,9 +21,6 @@
 #   mgmt-kali  — allows our team's Kali workstation to SSH in for management.
 #                Source is restricted to our Kali IP; all other SSH attempts
 #                are dropped at the interface level before reaching sshd.
-#
-#   dhcp-trust — allows DHCP traffic from the known DHCP server so the VM
-#                can acquire or renew its IP address during the competition.
 #
 #   The physical interface (detected automatically) is assigned to the built-in
 #   'drop' zone, which drops all traffic not matched by the custom zones above.
@@ -46,7 +43,7 @@
 #   packet is both logged (visible in journalctl) and dropped.
 #
 # HARDCODED VALUES:
-#   None. All five environment-specific IPs are prompted at runtime via ask_ip().
+#   None. All four environment-specific IPs are prompted at runtime via ask_ip().
 #   The original version of this script had hardcoded IPs from the practice
 #   environment, which would have been wrong in the actual competition network.
 #   Prompting at runtime ensures the script works regardless of which team
@@ -109,7 +106,6 @@ echo "Interface: $INTERFACE"
 # rules have been applied.
 SCORING_IP=$(ask_ip    "Scoring engine IP     ")  # IP of the NCAE scoring bot
 EXTERNAL_KALI=$(ask_ip "Team Kali IP          ")  # our Kali workstation's IP
-DHCP_SERVER=$(ask_ip   "DHCP server IP        ")  # DHCP server for the competition subnet
 DNS_SERVER=$(ask_ip    "DNS server IP         ")  # our dns VM's IP (outbound DNS allowed here only)
 REPO_MIRROR=$(ask_ip   "Repo mirror IP        ")  # package mirror (outbound HTTP/HTTPS allowed here only)
 echo ""
@@ -174,34 +170,15 @@ firewall-cmd --permanent --zone=mgmt-kali --add-protocol=icmp
 firewall-cmd --permanent --zone=mgmt-kali --set-target=ACCEPT
 
 # =============================================================================
-# DHCP TRUST ZONE
-# =============================================================================
-# The VM needs to communicate with the DHCP server to acquire and renew its
-# IP lease. We allow DHCP traffic (UDP 67/68) only from the known DHCP server.
-
-firewall-cmd --permanent --new-zone=dhcp-trust
-firewall-cmd --permanent --zone=dhcp-trust --add-source=${DHCP_SERVER}
-firewall-cmd --permanent --zone=dhcp-trust --add-service=dhcp    # UDP 67 (server) and 68 (client)
-firewall-cmd --permanent --zone=dhcp-trust --set-target=ACCEPT
-
-# =============================================================================
 # DROP ZONE — assign the interface (default-deny inbound)
 # =============================================================================
 # Assign the physical interface to the built-in 'drop' zone.
 # The drop zone target is DROP: any packet that arrives on this interface and
-# is NOT matched by a source-IP rule in scoring, mgmt-kali, or dhcp-trust is
+# is NOT matched by a source-IP rule in the scoring or mgmt-kali zones is
 # silently discarded. This is the equivalent of a default-deny INPUT policy.
+# All VMs use static IPs in competition — no DHCP needed.
 
-# Assign our interface to the drop zone
 firewall-cmd --permanent --zone=drop --add-interface=${INTERFACE}
-
-# Temporarily allow DHCP in the drop zone as well — the DHCP client sends
-# its initial discovery broadcast before it has an assigned IP, so the
-# source-based dhcp-trust zone cannot match it yet. Comment this line out
-# once the VM has a stable IP assignment.
-firewall-cmd --permanent --zone=drop --add-service=dhcp
-# NOTE: Remove the line above once IP is confirmed stable:
-#   firewall-cmd --permanent --zone=drop --remove-service=dhcp && firewall-cmd --reload
 
 # =============================================================================
 # OUTBOUND RULES (direct iptables — OUTPUT chain)
@@ -244,12 +221,6 @@ firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 \
 # --dports uses the multiport extension to match both 80 and 443 in one rule.
 firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 \
     -p tcp -d ${REPO_MIRROR} -m multiport --dports 80,443 -j ACCEPT
-
-# Priority 2d: Allow outbound DHCP (UDP ports 67 and 68).
-# The DHCP client sends from port 68 to port 67. We allow this range so that
-# lease renewal traffic can still reach the DHCP server.
-firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 2 \
-    -p udp --dport 67:68 -j ACCEPT
 
 # Priority 254: LOG any outbound packet that did not match any allow rule.
 # The log prefix "REVERSE_SHELL_ATTEMPT:" makes these entries easy to grep for

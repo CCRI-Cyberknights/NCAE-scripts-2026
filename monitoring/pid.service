@@ -1,12 +1,12 @@
 [Unit]
-Description=Watching Users
+Description=Kill unexpected network connections
 
 [Service]
-ExecStart=/usr/local/bin/killpid.sh
+ExecStart=/root/scripts-2026/monitoring/killpid.sh
 Restart=always
 RestartSec=1m
-StartLimitBurst=2
-StartLimitIntervalSec=30
+StartLimitBurst=20
+StartLimitIntervalSec=600
 
 [Install]
 WantedBy=multi-user.target
