@@ -1,0 +1,40 @@
+# .bashrc
+
+# 1. FORCE THE PATH 
+# This ensures that even if Red Team adds /tmp to your PATH, 
+# the shell looks in trusted system directories first.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# 2. SOURCE SYSTEM DEFAULTS
+# This pulls in the standard Rocky Linux completions and global aliases
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
+# 3. SECURITY ALIASES (The "Sanity" Set)
+# Using absolute paths ensures these aliases can't be redirected.
+alias ls='/usr/bin/ls --color=auto'
+alias grep='/usr/bin/grep --color=auto'
+alias ip='/usr/sbin/ip -c'
+
+# These prevent accidental deletions/overwrites
+alias cp='/usr/bin/cp -i'
+alias mv='/usr/bin/mv -i'
+alias rm='/usr/bin/rm -i'
+
+# 4. ADMIN CONVENIENCE ALIASES
+alias ll='/usr/bin/ls -lah'
+alias ltr='/usr/bin/ls -lahtr'  # Sort by time, newest at bottom
+alias psg='/usr/bin/ps aux | /usr/bin/grep -v grep | /usr/bin/grep -i'
+alias netp='/usr/bin/ss -tulpn' # Quick view of listening ports/PIDs
+
+# 5. THE "SUDO" PROTECTOR
+# Adding a space after sudo tells bash to check the NEXT word for an alias.
+# This prevents certain types of alias-injection attacks.
+alias sudo='/usr/bin/sudo '
+
+# 6. SHELL OPTIONS
+# Don't save duplicate lines or lines starting with space in history
+HISTCONTROL=ignoreboth
+HISTSIZE=1000
+HISTFILESIZE=2000
