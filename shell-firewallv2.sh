@@ -1,4 +1,12 @@
 #!/bin/bash
+
+# Script must be run as root
+if [ "$EUID" -ne 0 ]; then 
+  echo "Rquires Root: sudo ./path-firewall.sh"
+  exit
+fi
+
+# Set to the correct IPs before running
 INTERFACE="enp0s3"
 SCORING_IP="192.168.24.22"
 EXTERNAL_KALI="192.168.24.20"
