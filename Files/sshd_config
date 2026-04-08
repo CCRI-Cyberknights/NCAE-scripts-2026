@@ -1,0 +1,25 @@
+# Only allow Protocol 2
+Protocol 2
+
+# Disable root login over SSH to prevent brute-force entry into the most powerful account
+PermitRootLogin no
+
+# Enforce the use of the keys you've already generated
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+# Disable password authentication entirely (Crucial for Red Team protection)
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+
+# Limit the number of failed attempts before a connection is dropped
+MaxAuthTries 3
+
+# Disable X11 forwarding and other features often used for lateral movement
+X11Forwarding no
+AllowTcpForwarding no
+PermitTunnel no
+
+# Log detailed information for Blue Team analysis
+LogLevel VERBOSE
